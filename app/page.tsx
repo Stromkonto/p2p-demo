@@ -17,6 +17,23 @@ export default function Home() {
   const [sellerAccountId, setSellerAccountId] = useState("");
   const [email, setEmail] = useState("");
   const [accountLinkUrl, setAccountLinkUrl] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressCity, setAddressCity] = useState("");
+  const [addressState, setAddressState] = useState("");
+  const [addressPostalCode, setAddressPostalCode] = useState("");
+  const [addressCountry, setAddressCountry] = useState("CH");
+  const [dobDay, setDobDay] = useState("");
+  const [dobMonth, setDobMonth] = useState("");
+  const [dobYear, setDobYear] = useState("");
+  const [externalAccountNumber, setExternalAccountNumber] = useState("");
+  const [externalAccountHolderName, setExternalAccountHolderName] =
+    useState("");
+  const [externalAccountHolderType, setExternalAccountHolderType] = useState<
+    "individual" | "company"
+  >("individual");
   const [sellerInput, setSellerInput] = useState("");
   const [accountStatus, setAccountStatus] = useState<any>(null);
   const [transfersActive, setTransfersActive] = useState(false);
@@ -44,14 +61,43 @@ export default function Home() {
   }, []);
 
   async function createSeller() {
+    const body = {
+      email,
+      first_name: firstName,
+      last_name: lastName,
+      phone,
+      address: {
+        line1: addressLine1,
+        city: addressCity,
+        state: addressState,
+        postal_code: addressPostalCode,
+        country: addressCountry,
+      },
+      dob: {
+        day: dobDay ? Number(dobDay) : undefined,
+        month: dobMonth ? Number(dobMonth) : undefined,
+        year: dobYear ? Number(dobYear) : undefined,
+      },
+      external_account: {
+        account_number: externalAccountNumber,
+        account_holder_name: externalAccountHolderName,
+        account_holder_type: externalAccountHolderType,
+      },
+    };
+
     const res = await fetch("/api/create-connected-account", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
+    if (data.error) {
+      alert(`Error creating account: ${data.error}`);
+      return;
+    }
+
     setSellerAccountId(data.connected_account_id);
-    // Prefill seller input and persist so it survives redirect through Stripe
+    // Prefill seller input and persist
     if (data.connected_account_id) {
       setSellerInput(data.connected_account_id);
       try {
@@ -59,13 +105,6 @@ export default function Home() {
       } catch (err) {
         // ignore
       }
-    }
-    if (data.account_link_url) {
-      setAccountLinkUrl(data.account_link_url);
-      // Redirect the current tab to the Stripe onboarding / verification link
-      // so the seller can upload required verification documents before
-      // returning to the app to create a payment intent.
-      window.location.href = data.account_link_url;
     }
   }
 
@@ -145,6 +184,24 @@ export default function Home() {
 
       <div className="border p-4 rounded w-full">
         <h2 className="font-semibold mb-2">1️⃣ Create Seller Account</h2>
+        <label className="text-sm">First name</label>
+        <input
+          type="text"
+          placeholder="First name"
+          value={firstName}
+          onChange={(e) => setFirstName(e.target.value)}
+          className="border px-2 py-1 rounded w-full mb-2"
+        />
+        <label className="text-sm">Last name</label>
+        <input
+          type="text"
+          placeholder="Last name"
+          value={lastName}
+          onChange={(e) => setLastName(e.target.value)}
+          className="border px-2 py-1 rounded w-full mb-2"
+        />
+
+        <label className="text-sm">Email</label>
         <input
           type="email"
           placeholder="seller@example.com"
@@ -152,6 +209,109 @@ export default function Home() {
           onChange={(e) => setEmail(e.target.value)}
           className="border px-2 py-1 rounded w-full mb-2"
         />
+
+        <label className="text-sm">Phone</label>
+        <input
+          type="tel"
+          placeholder="+41 79 000 00 00"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          className="border px-2 py-1 rounded w-full mb-2"
+        />
+
+        <label className="text-sm">Address line 1</label>
+        <input
+          type="text"
+          placeholder="Street address"
+          value={addressLine1}
+          onChange={(e) => setAddressLine1(e.target.value)}
+          className="border px-2 py-1 rounded w-full mb-2"
+        />
+        <div className="flex gap-2 mb-2">
+          <input
+            type="text"
+            placeholder="City"
+            value={addressCity}
+            onChange={(e) => setAddressCity(e.target.value)}
+            className="border px-2 py-1 rounded w-1/2"
+          />
+          <input
+            type="text"
+            placeholder="State"
+            value={addressState}
+            onChange={(e) => setAddressState(e.target.value)}
+            className="border px-2 py-1 rounded w-1/2"
+          />
+        </div>
+        <div className="flex gap-2 mb-2">
+          <input
+            type="text"
+            placeholder="Postal code"
+            value={addressPostalCode}
+            onChange={(e) => setAddressPostalCode(e.target.value)}
+            className="border px-2 py-1 rounded w-1/2"
+          />
+          <input
+            type="text"
+            placeholder="Country (e.g. CH)"
+            value={addressCountry}
+            onChange={(e) => setAddressCountry(e.target.value)}
+            className="border px-2 py-1 rounded w-1/2"
+          />
+        </div>
+
+        <label className="text-sm">Date of birth (DD / MM / YYYY)</label>
+        <div className="flex gap-2 mb-2">
+          <input
+            type="number"
+            placeholder="DD"
+            value={dobDay}
+            onChange={(e) => setDobDay(e.target.value)}
+            className="border px-2 py-1 rounded w-1/3"
+          />
+          <input
+            type="number"
+            placeholder="MM"
+            value={dobMonth}
+            onChange={(e) => setDobMonth(e.target.value)}
+            className="border px-2 py-1 rounded w-1/3"
+          />
+          <input
+            type="number"
+            placeholder="YYYY"
+            value={dobYear}
+            onChange={(e) => setDobYear(e.target.value)}
+            className="border px-2 py-1 rounded w-1/3"
+          />
+        </div>
+
+        <h3 className="font-medium mt-2">
+          External bank account (for payouts)
+        </h3>
+        <input
+          type="text"
+          placeholder="Account number"
+          value={externalAccountNumber}
+          onChange={(e) => setExternalAccountNumber(e.target.value)}
+          className="border px-2 py-1 rounded w-full mb-2"
+        />
+        <input
+          type="text"
+          placeholder="Account holder name"
+          value={externalAccountHolderName}
+          onChange={(e) => setExternalAccountHolderName(e.target.value)}
+          className="border px-2 py-1 rounded w-full mb-2"
+        />
+        <label className="text-sm">Account holder type</label>
+        <select
+          value={externalAccountHolderType}
+          onChange={(e) => setExternalAccountHolderType(e.target.value as any)}
+          className="border px-2 py-1 rounded w-full mb-2"
+        >
+          <option value="individual">Individual</option>
+          <option value="company">Company</option>
+        </select>
+
         <button
           onClick={createSeller}
           className="bg-blue-600 text-white px-4 py-2 rounded w-full"

@@ -6,7 +6,15 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 export async function POST(req: Request) {
-  const { email } = await req.json();
+  const {
+    email,
+    address,
+    dob,
+    first_name,
+    last_name,
+    phone,
+    external_account,
+  } = await req.json();
 
   // Basic validation
   if (!email || typeof email !== "string") {
@@ -17,33 +25,62 @@ export async function POST(req: Request) {
     // Request transfers capability so we can send funds to this connected account.
     // Express accounts require the seller to complete onboarding to enable capabilities.
     const account = await stripe.accounts.create({
-      type: "express",
+      type: "custom",
       country: "CH",
       email,
-      // For US accounts, Stripe requires card_payments to be requested when
-      // requesting transfers. Request both capabilities so onboarding can
-      // be completed and transfers enabled.
+      business_type: "individual",
       capabilities: {
         card_payments: { requested: true },
         transfers: { requested: true },
+        twint_payments: { requested: true },
+      },
+      business_profile: {
+        mcc: "1520", // General Services
+        url: "https://www.stromkonto.ch",
+      },
+      individual: {
+        first_name: first_name,
+        last_name: last_name,
+        phone: phone,
+        email: email,
+        address: {
+          line1: address?.line1,
+          city: address?.city,
+          state: address?.state,
+          postal_code: address?.postal_code,
+          country: address?.country,
+        },
+        dob: {
+          day: dob?.day,
+          month: dob?.month,
+          year: dob?.year,
+        },
+      },
+      tos_acceptance: {
+        date: Math.floor(Date.now() / 1000),
+        ip: "12.79.78.46",
       },
     });
 
-    // Create an Account Link so the seller can complete onboarding in Stripe.
-    // Use localhost URLs for dev; you can replace with an env var if you prefer.
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-    const accountLink = await stripe.accountLinks.create({
-      account: account.id,
-      refresh_url: baseUrl,
-      // After onboarding we redirect to a dedicated onboarding-complete page
-      // which will show a success message and link back to the app.
-      return_url: `${baseUrl}/onboarding-complete`,
-      type: "account_onboarding",
-    });
+    // Attach a test external bank account to the connected account for payouts
+    const bankAccount = await stripe.accounts.createExternalAccount(
+      account.id,
+      {
+        external_account: {
+          object: "bank_account",
+          country: "CH",
+          currency: "chf",
+          account_number: external_account?.account_number,
+          account_holder_name: external_account?.account_holder_name,
+          account_holder_type: external_account?.account_holder_type,
+        },
+      }
+    );
 
+    // Include the external bank account in the response
     return NextResponse.json({
       connected_account_id: account.id,
-      account_link_url: accountLink.url,
+      external_bank_account: bankAccount.id,
     });
   } catch (err: any) {
     // Log the full error server-side to help debugging
